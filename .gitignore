@@ -1,2 +1,5 @@
 # Ignore pong executable.
 pong
+
+# Ignore swap files.
+.*sw*
