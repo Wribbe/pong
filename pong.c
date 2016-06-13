@@ -7,9 +7,9 @@
 #define UNUSED(x) (void) x
 
 void error(const char * message, bool fatal) {
-    printf("ERROR: %s", message);
+    fprintf(stderr, "ERROR: %s", message);
     if (fatal) {
-        printf("ERROR: Shutting down.\n");
+        fprintf(stderr, "ERROR: Shutting down.\n");
         exit(EXIT_FAILURE);
     }
 }
