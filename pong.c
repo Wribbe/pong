@@ -57,6 +57,8 @@ const GLfloat vertices[] = {
 };
 
 GLint shader_compile(GLuint shader_id, char * buffer_info, size_t s_buffer_info) {
+    /* TODO: Make this function on a list in the same way that shaders_delete
+     * does. */
 
     /* Compile shader. */
     glCompileShader(shader_id);
@@ -96,6 +98,13 @@ GLint program_link(GLuint shader_program,
         glGetProgramInfoLog(shader_program, size_buffer, NULL, buffer_info);
     }
     return success;
+}
+
+void shaders_delete(GLuint * ids, size_t num_ids) {
+    /* Delete all shaders in the ids list. */
+    for(size_t i=0; i<num_ids; i++) {
+        glDeleteShader(ids[i]);
+    }
 }
 
 int main(void) {
@@ -214,6 +223,9 @@ int main(void) {
         error("Error at program linkage:\n", false);
         error(buffer_info, false);
     }
+
+    /* Delete linked shaders. */
+    shaders_delete(shaders, sizeof(shaders));
 
     // ================================================================
     // == Main loop.
