@@ -107,6 +107,23 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
     }
 }
 
+void render(GLuint vertex_array,
+            GLuint shader_program,
+            size_t s_vertices) {
+
+        /* Set the current linker program that should be used. */
+        glUseProgram(shader_program);
+
+        /* Bind the VAO that should be used. */
+        glBindVertexArray(vertex_array);
+
+        /* Draw the vertices as triangles. */
+        glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
+
+        /* Unbind the vertex array. */
+        glBindVertexArray(0);
+}
+
 int main(void) {
 
     // ================================================================
@@ -240,6 +257,7 @@ int main(void) {
         react_to_events(window);
 
         /* Render the things. */
+        render(VAO, shader_program, sizeof(vertices));
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
