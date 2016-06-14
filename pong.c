@@ -128,7 +128,7 @@ void render(GLuint vertex_array,
 }
 
 
-void square(GLfloat * buffer, size_t start, size_t width, size_t height) {
+void square(GLfloat * buffer, size_t current_num, float width, float height) {
     /* Create square around center point (0, 0) with height and width. */
     float half_width = width/2.0f;
     float half_height = height/2.0f;
