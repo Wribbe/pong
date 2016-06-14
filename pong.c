@@ -51,12 +51,6 @@ const GLchar * source_fragment_shader = \
     "   color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
     "}\n";
 
-//const GLfloat vertices[] = {
-//    -0.25f,  0.50f,  1.00f,
-//    -0.25f, -0.50f,  1.00f,
-//     0.25f,  0.50f,  1.00f,
-//};
-
 
 GLint shader_compile(GLuint shader_id, char * buffer_info, size_t s_buffer_info) {
     /* TODO: Make this function on a list in the same way that shaders_delete
@@ -126,7 +120,7 @@ void render(GLuint vertex_array,
         glBindVertexArray(0);
 }
 
-void square(GLfloat * buffer, size_t width, size_t height) {
+void square(GLfloat * buffer, size_t start, size_t width, size_t height) {
     /* Create square around center point (0, 0) with height and width. */
     float half_width = width/2.0f;
     float half_height = height/2.0f;
@@ -135,7 +129,7 @@ void square(GLfloat * buffer, size_t width, size_t height) {
         /* First triangle. */
         -half_width, half_height, 1.0f,
         -half_width,-half_height, 1.0f,
-        +half_width,+half_height, 1.0f,
+         half_width, half_height, 1.0f,
 
         /* Second triangle. */
         +half_width,+half_height, 1.0f,
@@ -144,10 +138,9 @@ void square(GLfloat * buffer, size_t width, size_t height) {
     };
 
     /* Copy values from temp_buffer to buffer. */
-    size_t temp_elements = sizeof(temp_buffer)/sizeof(float);
-    printf("size: %zu\n", sizeof(temp_buffer));
-    for (size_t i=0; i<(temp_elements/3); i++) {
-        buffer[i] = temp_buffer[i];
+    size_t temp_elements = SIZE(temp_buffer);
+    for (size_t i=0; i<temp_elements; i++) {
+        buffer[i] = temp_buffer[start+(1*i)];
     }
 }
 
@@ -197,8 +190,7 @@ int main(void) {
     /* Create vertices. */
     size_t num_vertices = 6;
     GLfloat vertices[num_vertices];
-    square(vertices, 1, 1);
-
+    square(vertices, 0, 1, 1);
 
     /* Create buffers. */
     GLuint VBO, VAO;
@@ -213,7 +205,7 @@ int main(void) {
     /* Bind buffer object */
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     /* Populate buffer with data. */
-    glBufferData(GL_ARRAY_BUFFER, num_vertices, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, num_vertices*3*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
     /* Set vertex attribute pointer for position attribute. */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0);
@@ -291,8 +283,7 @@ int main(void) {
         react_to_events(window);
 
         /* Render the things. */
-//        render(VAO, shader_program, sizeof(vertices));
-        render(VAO, shader_program, 6);
+        render(VAO, shader_program, num_vertices*3*sizeof(GLfloat));
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
