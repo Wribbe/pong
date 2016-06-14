@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #define UNUSED(x) (void) x
+#define SIZE(x) sizeof(x)/sizeof(x[0])
 
 bool map_keys[1024];
 
@@ -265,7 +266,7 @@ int main(void) {
     /* Attach shaders to shader program and link. */
     success = program_link(shader_program,
                            shaders,
-                           sizeof(shaders),
+                           SIZE(shaders),
                            buffer_info,
                            s_buffer_info);
 
@@ -275,7 +276,7 @@ int main(void) {
     }
 
     /* Delete linked shaders. */
-    shaders_delete(shaders, sizeof(shaders));
+    shaders_delete(shaders, SIZE(shaders));
 
     // ================================================================
     // == Main loop.
