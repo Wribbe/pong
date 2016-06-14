@@ -148,7 +148,7 @@ void square(GLfloat * buffer, size_t current_num, float width, float height) {
     /* Copy values from temp_buffer to buffer. */
     size_t temp_elements = SIZE(temp_buffer);
     for (size_t i=0; i<temp_elements; i++) {
-        buffer[i] = temp_buffer[start+(1*i)];
+        buffer[(temp_elements*current_num)+i] = temp_buffer[i];
     }
 }
 
