@@ -147,8 +147,10 @@ void square(GLfloat * buffer, size_t current_num, float width, float height) {
 
     /* Copy values from temp_buffer to buffer. */
     size_t temp_elements = SIZE(temp_buffer);
+    size_t index = 0;
     for (size_t i=0; i<temp_elements; i++) {
-        buffer[(temp_elements*current_num)+i] = temp_buffer[i];
+        index = i + current_num*temp_elements;
+        buffer[index] = temp_buffer[i];
     }
 }
 
@@ -196,9 +198,12 @@ int main(void) {
     // ================================================================
 
     /* Create vertices. */
-    size_t num_vertices = 6;
-    GLfloat vertices[num_vertices];
-    square(vertices, 0, 1, 1);
+    size_t num_squares = 2;
+    size_t num_vertices = 6*num_squares;
+    size_t num_floats = 3*num_vertices;
+    GLfloat vertices[num_floats];
+    square(vertices, 0, 0.5f, 1.0f);
+    square(vertices, 1, 1.0f, 0.5f);
 
     /* Create buffers. */
     GLuint VBO, VAO;
@@ -213,7 +218,7 @@ int main(void) {
     /* Bind buffer object */
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     /* Populate buffer with data. */
-    glBufferData(GL_ARRAY_BUFFER, num_vertices*3*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, num_floats*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
     /* Set vertex attribute pointer for position attribute. */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0);
@@ -291,7 +296,7 @@ int main(void) {
         react_to_events(window);
 
         /* Render the things. */
-        render(VAO, shader_program, num_vertices*3*sizeof(GLfloat));
+        render(VAO, shader_program, num_floats*sizeof(GLfloat));
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
