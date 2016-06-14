@@ -193,6 +193,9 @@ int main(void) {
         error("Could not initialize glew.\n", true);
     }
 
+    /* Set clearing color. */
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
     // ================================================================
     // == Buffers.
     // ================================================================
@@ -294,6 +297,9 @@ int main(void) {
 
         /* React to polled events. */
         react_to_events(window);
+
+        /* Clear screen. */
+        glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the things. */
         render(VAO, shader_program, num_floats*sizeof(GLfloat));
