@@ -22,6 +22,7 @@ void key_callback(GLFWwindow * window, int key, int scancode, int action, int mo
     }
 }
 
+
 void error(const char * message, bool fatal) {
     fprintf(stderr, "ERROR: %s", message);
     if (fatal) {
@@ -30,11 +31,13 @@ void error(const char * message, bool fatal) {
     }
 }
 
+
 void react_to_events(GLFWwindow * window) {
     if (map_keys[GLFW_KEY_ESCAPE]) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     }
 }
+
 
 const GLchar * source_vertex_shader = \
     "#version 330 core\n"
@@ -43,6 +46,7 @@ const GLchar * source_vertex_shader = \
     "void main() {"
     "   gl_Position = vec4(position, 1.0f);\n"
     "}\n";
+
 
 const GLchar * source_fragment_shader = \
     "#version 330 core\n"
@@ -70,6 +74,7 @@ GLint shader_compile(GLuint shader_id, char * buffer_info, size_t s_buffer_info)
     return success;
 }
 
+
 GLint program_link(GLuint shader_program,
                    GLuint * ids,
                    size_t num_shaders,
@@ -96,12 +101,14 @@ GLint program_link(GLuint shader_program,
     return success;
 }
 
+
 void shaders_delete(GLuint * ids, size_t num_ids) {
     /* Delete all shaders in the ids list. */
     for(size_t i=0; i<num_ids; i++) {
         glDeleteShader(ids[i]);
     }
 }
+
 
 void render(GLuint vertex_array,
             GLuint shader_program,
@@ -119,6 +126,7 @@ void render(GLuint vertex_array,
         /* Unbind the vertex array. */
         glBindVertexArray(0);
 }
+
 
 void square(GLfloat * buffer, size_t start, size_t width, size_t height) {
     /* Create square around center point (0, 0) with height and width. */
