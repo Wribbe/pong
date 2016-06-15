@@ -42,9 +42,10 @@ void react_to_events(GLFWwindow * window) {
 const GLchar * source_vertex_shader = \
     "#version 330 core\n"
     "layout (location=0) in vec3 position;\n"
+    "uniform mat4 transform;\n"
     "\n"
     "void main() {"
-    "   gl_Position = vec4(position, 1.0f);\n"
+    "   gl_Position = transform * vec4(position, 1.0f);\n"
     "}\n";
 
 
@@ -112,10 +113,18 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
 
 void render(GLuint vertex_array,
             GLuint program_shader,
-            size_t s_vertices) {
+            size_t s_vertices,
+            GLuint uloc_transform,
+            GLfloat matrix_transform[4][4]) {
 
         /* Set the current linker program that should be used. */
         glUseProgram(program_shader);
+
+        /* Set transformation matrix. */
+        size_t count = 1;
+        GLboolean transpose = GL_TRUE;
+        GLfloat * ptr_value = &matrix_transform[0][0];
+        glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
 
         /* Bind the VAO that should be used. */
         glBindVertexArray(vertex_array);
@@ -153,6 +162,14 @@ void square(GLfloat * buffer, size_t current_num, float width, float height) {
         buffer[index] = temp_buffer[i];
     }
 }
+
+
+GLfloat matrix_unity[4][4] = {
+    {1.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 1.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 1.0f},
+};
 
 
 int main(void) {
@@ -225,7 +242,7 @@ int main(void) {
 
     /* Set vertex attribute pointer for position attribute. */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0);
-    /* Enable vertex attribute pointer. */
+    /* Enable vertex attribute location pointer. */
     glEnableVertexAttribArray(0);
 
     /* Unbind buffer object. */
@@ -286,6 +303,9 @@ int main(void) {
     /* Delete linked shaders. */
     shaders_delete(shaders, SIZE(shaders));
 
+    /* Get vertex shader transformation location. */
+    GLuint uloc_transform = glGetUniformLocation(program_shader, "transform");
+
     // ================================================================
     // == Main loop.
     // ================================================================
@@ -302,7 +322,11 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the things. */
-        render(VAO, program_shader, num_floats*sizeof(GLfloat));
+        render(VAO,
+               program_shader,
+               num_floats*sizeof(GLfloat),
+               uloc_transform,
+               matrix_unity);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
