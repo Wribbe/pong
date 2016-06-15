@@ -75,7 +75,7 @@ GLint shader_compile(GLuint shader_id, char * buffer_info, size_t s_buffer_info)
 }
 
 
-GLint program_link(GLuint shader_program,
+GLint program_link(GLuint program_shader,
                    GLuint * ids,
                    size_t num_shaders,
                    char * buffer_info,
@@ -85,18 +85,18 @@ GLint program_link(GLuint shader_program,
 
     /* Attach all shaders ids. */
     for(size_t i=0; i<num_shaders; i++) {
-        glAttachShader(shader_program, ids[i]);
+        glAttachShader(program_shader, ids[i]);
     }
 
     /* Link all the attached shades. */
-    glLinkProgram(shader_program);
+    glLinkProgram(program_shader);
 
     /* Examine the linking status. */
     GLint success;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+    glGetProgramiv(program_shader, GL_LINK_STATUS, &success);
 
     if (!success) {
-        glGetProgramInfoLog(shader_program, size_buffer, NULL, buffer_info);
+        glGetProgramInfoLog(program_shader, size_buffer, NULL, buffer_info);
     }
     return success;
 }
@@ -111,11 +111,11 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
 
 
 void render(GLuint vertex_array,
-            GLuint shader_program,
+            GLuint program_shader,
             size_t s_vertices) {
 
         /* Set the current linker program that should be used. */
-        glUseProgram(shader_program);
+        glUseProgram(program_shader);
 
         /* Bind the VAO that should be used. */
         glBindVertexArray(vertex_array);
@@ -266,13 +266,13 @@ int main(void) {
     }
 
     /* Set up shader program. */
-    GLuint shader_program = glCreateProgram();
+    GLuint program_shader = glCreateProgram();
 
     /* Make shader list */
     GLuint shaders[] = {shader_vertex, shader_fragment};
 
     /* Attach shaders to shader program and link. */
-    success = program_link(shader_program,
+    success = program_link(program_shader,
                            shaders,
                            SIZE(shaders),
                            buffer_info,
@@ -302,7 +302,7 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the things. */
-        render(VAO, shader_program, num_floats*sizeof(GLfloat));
+        render(VAO, program_shader, num_floats*sizeof(GLfloat));
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
