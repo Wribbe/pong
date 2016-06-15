@@ -228,12 +228,11 @@ int main(void) {
     // ================================================================
 
     /* Create vertices. */
-    size_t num_squares = 2;
+    size_t num_squares = 1;
     size_t num_vertices = 6*num_squares;
     size_t num_floats = 3*num_vertices;
     GLfloat vertices[num_floats];
-    square(vertices, 0, 0.5f, 1.0f);
-    square(vertices, 1, 1.0f, 0.5f);
+    square(vertices, 0, 0.05f, 0.2f);
 
     /* Create buffers. */
     GLuint VBOs[NUM_ENTITIES];
