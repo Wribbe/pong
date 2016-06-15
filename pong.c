@@ -140,10 +140,22 @@ void render(GLuint vertex_array,
 }
 
 
-void square(GLfloat * buffer, size_t current_num, float width, float height) {
-    /* Create square around center point (0, 0) with height and width. */
-    float half_width = width/2.0f;
-    float half_height = height/2.0f;
+void square(GLfloat * buffer,
+            size_t current_num,
+            float pixel_width,
+            float pixel_height,
+            int screen_width,
+            int screen_height) {
+    /* Populate vertices with data points corresponding to a square with
+     * width pixel_width and height pixel_height. */
+
+    /* Calculate pixel dimensions based on screen dimensions. */
+    float delta_width = 1.0f/(float)screen_width;
+    float delta_height = 1.0f/(float)screen_height;
+
+    /* Calculate pixel/screen-axis ratio. */
+    float half_width = pixel_width * delta_width * 0.5f;
+    float half_height = pixel_height * delta_height * 0.5f;
 
     float temp_buffer[] = {
         /* First triangle. */
@@ -232,7 +244,8 @@ int main(void) {
     size_t num_vertices = 6*num_squares;
     size_t num_floats = 3*num_vertices;
     GLfloat vertices[num_floats];
-    square(vertices, 0, 0.05f, 0.2f);
+    //square(vertices, 0, 0.05f, 0.2f);
+    square(vertices, 0, 15, 15, WIDTH, HEIGHT);
 
     /* Create buffers. */
     GLuint VBOs[NUM_ENTITIES];
