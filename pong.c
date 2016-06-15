@@ -132,6 +132,9 @@ void render(GLuint vertex_array,
         /* Draw the vertices as triangles. */
         glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
 
+        /* Unset the shader program */
+        glUseProgram(program_shader);
+
         /* Unbind the vertex array. */
         glBindVertexArray(0);
 }
