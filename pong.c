@@ -5,7 +5,9 @@
 #include <GLFW/glfw3.h>
 
 #define UNUSED(x) (void) x
+
 #define SIZE(x) sizeof(x)/sizeof(x[0])
+
 
 bool map_keys[1024];
 
@@ -179,14 +181,6 @@ void square(GLfloat * buffer,
 }
 
 
-GLfloat matrix_unity[4][4] = {
-    {1.0f, 0.0f, 0.0f, 0.0f},
-    {0.0f, 1.0f, 0.0f, 0.0f},
-    {0.0f, 0.0f, 1.0f, 0.0f},
-    {0.0f, 0.0f, 0.0f, 1.0f},
-};
-
-
 typedef enum entities {
     PADDLE,
     BALL,
@@ -194,7 +188,34 @@ typedef enum entities {
 } entities;
 
 
+typedef GLfloat m4[4][4];
+
+
+#define m4_unity (m4){\
+    {1.0f, 0.0f, 0.0f, 0.0f}, \
+    {0.0f, 1.0f, 0.0f, 0.0f}, \
+    {0.0f, 0.0f, 1.0f, 0.0f}, \
+    {0.0f, 0.0f, 0.0f, 1.0f}, \
+}
+
+
+void m4_set(m4 dest, m4 source) {
+    for(size_t i=0; i<4; i++) {
+        for(size_t j=0; j<4; j++) {
+            dest[i][j] = source[i][j];
+        }
+    }
+}
+
+
 int main(void) {
+
+    // ================================================================
+    // == Data and matrix setup.
+    // ================================================================
+
+    m4 matrix_unity = {0};
+    m4_set(matrix_unity, m4_unity);
 
     // ================================================================
     // == Window and context setup.
