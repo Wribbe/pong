@@ -239,13 +239,16 @@ int main(void) {
     // == Buffers.
     // ================================================================
 
-    /* Create vertices. */
-    size_t num_squares = 1;
+    /* Calculate and store values related to vertices. */
+    size_t num_squares = 2;
     size_t num_vertices = 6*num_squares;
     size_t num_floats = 3*num_vertices;
+    size_t num_floats_in_square = num_floats/num_squares;
+
+    /* Create vertices. */
     GLfloat vertices[num_floats];
-    //square(vertices, 0, 0.05f, 0.2f);
-    square(vertices, 0, 15, 15, WIDTH, HEIGHT);
+    square(vertices, PADDLE, 20, 80, WIDTH, HEIGHT);
+    square(vertices, BALL, 15, 15, WIDTH, HEIGHT);
 
     /* Create buffers. */
     GLuint VBOs[NUM_ENTITIES];
@@ -255,20 +258,57 @@ int main(void) {
     glGenVertexArrays(NUM_ENTITIES, VAOs);
     glGenBuffers(NUM_ENTITIES, VBOs);
 
-    /* Bind vertex array object. */
-    glBindVertexArray(VAOs[PADDLE]);
+    /* Set up main buffer object and populate. */
 
-    /* Bind buffer object */
+    /* Bind array buffer. */
     glBindBuffer(GL_ARRAY_BUFFER, VBOs[PADDLE]);
+
     /* Populate buffer with data. */
     glBufferData(GL_ARRAY_BUFFER, num_floats*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
+    /* Unbind buffer object. */
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    /* Set up the different Vertex Array Objects. */
+
+    /* Set up binds for PADDLE VAO object. */
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[PADDLE]);
+
+    /* Bind PADDLE vertex array object. */
+    glBindVertexArray(VAOs[PADDLE]);
+
     /* Set vertex attribute pointer for position attribute. */
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0);
+
     /* Enable vertex attribute location pointer. */
     glEnableVertexAttribArray(0);
 
     /* Unbind buffer object. */
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    /* Unbind vertex array object. */
+    glBindVertexArray(0);
+
+    /* Set up binds for BALL VAO object. */
+
+    /* Bind BALL vertex array object. */
+    glBindVertexArray(VAOs[BALL]);
+
+    /* Re-use the PADDLE VBO since it contains alla data. */
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[PADDLE]);
+
+    /* Set vertex attribute pointer for position at an offset. */
+    size_t offset_bytes = BALL * num_floats_in_square * sizeof(GLfloat);
+    GLvoid * ptr_offset = (GLvoid *)offset_bytes;
+
+    /* Set vertex attribute pointer for position at an offset. */
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), ptr_offset);
+
+    /* Enable vertex attribute pointer. */
+    glEnableVertexAttribArray(0);
+
+    /* Unbind vertex and buffer array. */
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // ================================================================
@@ -344,8 +384,22 @@ int main(void) {
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
 
-        /* Render the things. */
-        render(VAOs[PADDLE],
+//        /* Render the first paddle. */
+//        render(VAOs[PADDLE],
+//               program_shader,
+//               num_floats*sizeof(GLfloat),
+//               uloc_transform,
+//               matrix_unity);
+//
+//        /* Render the second paddle. */
+//        render(VAOs[PADDLE],
+//               program_shader,
+//               num_floats*sizeof(GLfloat),
+//               uloc_transform,
+//               matrix_unity);
+
+        /* Render the ball. */
+        render(VAOs[BALL],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
