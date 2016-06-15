@@ -175,6 +175,13 @@ GLfloat matrix_unity[4][4] = {
 };
 
 
+typedef enum entities {
+    PADDLE,
+    BALL,
+    NUM_ENTITIES,
+} entities;
+
+
 int main(void) {
 
     // ================================================================
@@ -229,17 +236,18 @@ int main(void) {
     square(vertices, 1, 1.0f, 0.5f);
 
     /* Create buffers. */
-    GLuint VBO, VAO;
+    GLuint VBOs[NUM_ENTITIES];
+    GLuint VAOs[NUM_ENTITIES];
 
     /* Generate empty vertex and buffer object. */
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    glGenVertexArrays(NUM_ENTITIES, VAOs);
+    glGenBuffers(NUM_ENTITIES, VBOs);
 
     /* Bind vertex array object. */
-    glBindVertexArray(VAO);
+    glBindVertexArray(VAOs[PADDLE]);
 
     /* Bind buffer object */
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[PADDLE]);
     /* Populate buffer with data. */
     glBufferData(GL_ARRAY_BUFFER, num_floats*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
 
@@ -325,7 +333,7 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the things. */
-        render(VAO,
+        render(VAOs[PADDLE],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
