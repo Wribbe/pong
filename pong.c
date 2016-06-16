@@ -20,9 +20,27 @@ enum {
 };
 
 
+typedef struct Item_Data {
+    GLint width;
+    GLint height;
+    GLint speed;
+    GLuint id;
+    GLuint offset;
+} Item_Data;
+
+
+typedef struct Environment_Data {
+    GLint width;
+    GLint height;
+    GLfloat delta_width;
+    GLfloat delta_height;
+} Environment_Data;
+
+
 typedef struct Event_Data {
     GLFWwindow * window;
     m4 * transformation_matrices;
+    Item_Data * items;
 } Event_Data;
 
 
@@ -173,22 +191,13 @@ void render(GLuint vertex_array,
 }
 
 
-void square(GLfloat * buffer,
-            size_t current_num,
-            float pixel_width,
-            float pixel_height,
-            int screen_width,
-            int screen_height) {
+void square(GLfloat * buffer, Item_Data item, Environment_Data env){
     /* Populate vertices with data points corresponding to a square with
      * width pixel_width and height pixel_height. */
 
-    /* Calculate pixel dimensions based on screen dimensions. */
-    float delta_width = 1.0f/(float)screen_width;
-    float delta_height = 1.0f/(float)screen_height;
-
     /* Calculate pixel/screen-axis ratio. */
-    float half_width = pixel_width * delta_width * 0.5f;
-    float half_height = pixel_height * delta_height * 0.5f;
+    float half_width = item.width * env.delta_width * 0.5f;
+    float half_height = item.height * env.delta_height * 0.5f;
 
     float temp_buffer[] = {
         /* First triangle. */
@@ -206,7 +215,7 @@ void square(GLfloat * buffer,
     size_t temp_elements = SIZE(temp_buffer);
     size_t index = 0;
     for (size_t i=0; i<temp_elements; i++) {
-        index = i + current_num*temp_elements;
+        index = i + item.offset*temp_elements;
         buffer[index] = temp_buffer[i];
     }
 }
@@ -278,6 +287,73 @@ int main(void) {
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
     // ================================================================
+    // == Data and matrix setup.
+    // ================================================================
+
+    /* Create and populate environment data. */
+    Environment_Data environment_data = {
+        .width = WIDTH,
+        .height = HEIGHT,
+        .delta_width = 1.0f/WIDTH,
+        .delta_height = 1.0f/HEIGHT,
+    };
+
+    /* Create array with transformation matrices. */
+    m4 transformation_matrices[ID_NUM];
+
+    /* Initialize all transformation matrices to unity matrix. */
+    for (size_t i=0; i<ID_NUM; i++) {
+        m4_set(transformation_matrices[i], m4_unity);
+    }
+
+    /* Set starting positions for each object. */
+    transformation_matrices[ID_RIGHT_PADDLE][0][3] = 0.8f;
+    transformation_matrices[ID_LEFT_PADDLE][0][3] = -0.8f;
+
+    /* Paddle dimensions in pixels. */
+    GLuint paddle_width = 20;
+    GLuint paddle_height = 50;
+    GLuint paddle_speed = 5;
+    GLuint paddle_offset = 0;
+
+    /* Ball dimensions in pixels. */
+    GLuint ball_width = 15;
+    GLuint ball_height = 15;
+    GLuint ball_speed = 10;
+    GLuint ball_offset = 1;
+
+    /* Create Item_Data list items */
+    Item_Data items[ID_NUM] = {0};
+
+    /* Set item data for right paddle. */
+    items[ID_RIGHT_PADDLE] = (Item_Data){
+        .width=paddle_width,
+        .height=paddle_height,
+        .speed=paddle_speed,
+        .offset=paddle_offset,
+    };
+
+    /* Set item data for left paddle. */
+    items[ID_LEFT_PADDLE] = (Item_Data){
+        .width=paddle_width,
+        .height=paddle_height,
+        .speed=paddle_speed,
+        .offset=paddle_offset,
+    };
+
+    /* Set item data for ball. */
+    items[ID_BALL] = (Item_Data){
+        .width=ball_width,
+        .height=ball_height,
+        .speed=ball_speed,
+        .offset=ball_offset,
+    };
+
+    Event_Data event_data = {0};
+    event_data.window = window;
+    event_data.transformation_matrices = &transformation_matrices[0];
+
+    // ================================================================
     // == Buffers.
     // ================================================================
 
@@ -289,8 +365,8 @@ int main(void) {
 
     /* Create vertices. */
     GLfloat vertices[num_floats];
-    square(vertices, PADDLE, 20, 80, WIDTH, HEIGHT);
-    square(vertices, BALL, 15, 15, WIDTH, HEIGHT);
+    square(vertices, items[ID_LEFT_PADDLE], environment_data);
+    square(vertices, items[ID_BALL], environment_data);
 
     /* Create buffers. */
     GLuint VBOs[NUM_ENTITIES];
@@ -410,26 +486,6 @@ int main(void) {
 
     /* Get vertex shader transformation location. */
     GLuint uloc_transform = glGetUniformLocation(program_shader, "transform");
-
-    // ================================================================
-    // == Data and matrix setup.
-    // ================================================================
-
-    /* Create array with transformation matrices. */
-    m4 transformation_matrices[ID_NUM];
-
-    /* Initialize all transformation matrices to unity matrix. */
-    for (size_t i=0; i<ID_NUM; i++) {
-        m4_set(transformation_matrices[i], m4_unity);
-    }
-
-    /* Set starting positions for each object. */
-    transformation_matrices[ID_RIGHT_PADDLE][0][3] = 0.8f;
-    transformation_matrices[ID_LEFT_PADDLE][0][3] = -0.8f;
-
-    Event_Data event_data = {0};
-    event_data.window = window;
-    event_data.transformation_matrices = &transformation_matrices[0];
 
     // ================================================================
     // == Main loop.
