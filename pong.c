@@ -69,7 +69,7 @@ void error(const char * message, bool fatal) {
 }
 
 
-void react_to_events(Event_Data event_data) {
+void react_to_events(Event_Data event_data, Item_Data * items, Environment_Data env) {
 
     GLFWwindow * window = event_data.window;
     m4 * transformation_matrices = event_data.transformation_matrices;
@@ -79,13 +79,53 @@ void react_to_events(Event_Data event_data) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     }
 
-    GLfloat pad_speed = 0.05f;
+    /* Get item objects for left and right paddle. */
+    Item_Data item_right = items[ID_RIGHT_PADDLE];
+    Item_Data item_left = items[ID_LEFT_PADDLE];
+
+    /* Get delta height from environment. */
+    GLfloat delta_height = env.delta_height;
+
+    /* Get pixel speeds for paddles. */
+    GLint speed_right_pixel = item_right.speed;
+    GLint speed_left_pixel = item_left.speed;
+
+    /* Convert pixel speed.to float speed for both paddles. */
+    GLfloat speed_right_float = speed_right_pixel * delta_height;
+    GLfloat speed_left_float = speed_left_pixel * delta_height;
+
+    /* Grab pointers to height values for right and left pad. */
+    GLfloat * ptr_pos_right = &transformation_matrices[ID_RIGHT_PADDLE][1][3];
+    GLfloat * ptr_pos_left = &transformation_matrices[ID_LEFT_PADDLE][1][3];
+
+    /* Calculate current positions in pixels. */
+    GLint pos_right = *ptr_pos_right/delta_height;
+    GLint pos_left = *ptr_pos_left/delta_height;
+
+    /* Create variables for storing the next height value. */
+    GLint next_right_pos, next_left_pos;
 
     /* Move right paddle up and down with arrow keys. */
     if (map_keys[GLFW_KEY_UP]) {
-        transformation_matrices[ID_RIGHT_PADDLE][1][3] += pad_speed;
+        /* Calculate the next position based on pixel movement. */
+        next_right_pos = pos_right + speed_right_pixel;
+        /* Add the height of the paddle and check bounds. */
+        GLint top_of_right = next_right_pos+item_right.height/2;
+        if (top_of_right < env.height/2) {
+            *ptr_pos_right += speed_right_float;
+        } else {
+            *ptr_pos_right = 1.0f-item_right.height/2*delta_height;
+        }
     } else if (map_keys[GLFW_KEY_DOWN]) {
-        transformation_matrices[ID_RIGHT_PADDLE][1][3] -= pad_speed;
+        /* Calculate the next position based on pixel movement. */
+        next_right_pos = pos_right - speed_right_pixel;
+        /* Add the height of the paddle and check bounds. */
+        GLint bottom_of_right = next_right_pos-item_right.height/2;
+        if (bottom_of_right > -env.height/2) {
+            *ptr_pos_right -= speed_right_float;
+        } else {
+            *ptr_pos_right = -1.0f+item_right.height/2*delta_height;
+        }
     }
 }
 
@@ -294,8 +334,8 @@ int main(void) {
     Environment_Data environment_data = {
         .width = WIDTH,
         .height = HEIGHT,
-        .delta_width = 1.0f/WIDTH,
-        .delta_height = 1.0f/HEIGHT,
+        .delta_width = 2.0f/WIDTH,
+        .delta_height = 2.0f/HEIGHT,
     };
 
     /* Create array with transformation matrices. */
@@ -313,7 +353,7 @@ int main(void) {
     /* Paddle dimensions in pixels. */
     GLuint paddle_width = 20;
     GLuint paddle_height = 50;
-    GLuint paddle_speed = 5;
+    GLuint paddle_speed = 17;
     GLuint paddle_offset = 0;
 
     /* Ball dimensions in pixels. */
@@ -497,7 +537,7 @@ int main(void) {
         glfwPollEvents();
 
         /* React to polled events. */
-        react_to_events(event_data);
+        react_to_events(event_data, items, environment_data);
 
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
