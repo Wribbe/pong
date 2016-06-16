@@ -211,13 +211,6 @@ void m4_set(m4 dest, m4 source) {
 int main(void) {
 
     // ================================================================
-    // == Data and matrix setup.
-    // ================================================================
-
-    m4 matrix_unity = {0};
-    m4_set(matrix_unity, m4_unity);
-
-    // ================================================================
     // == Window and context setup.
     // ================================================================
 
@@ -391,6 +384,30 @@ int main(void) {
     GLuint uloc_transform = glGetUniformLocation(program_shader, "transform");
 
     // ================================================================
+    // == Data and matrix setup.
+    // ================================================================
+
+    /* Enumerate unique objects. */
+    enum id_transforms {
+        ID_RIGHT_PADDLE,
+        ID_LEFT_PADDLE,
+        ID_BALL,
+        ID_NUM,
+    };
+
+    /* Create array with transformation matrices. */
+    m4 transformation_matrixes[ID_NUM];
+
+    /* Initialize all transformation matrices to unity matrix. */
+    for (size_t i=0; i<ID_NUM; i++) {
+        m4_set(transformation_matrixes[i], m4_unity);
+    }
+
+    /* Set starting positions for each object. */
+    transformation_matrixes[ID_RIGHT_PADDLE][0][3] = 0.8f;
+    transformation_matrixes[ID_LEFT_PADDLE][0][3] = -0.8f;
+
+    // ================================================================
     // == Main loop.
     // ================================================================
 
@@ -405,26 +422,26 @@ int main(void) {
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
 
-//        /* Render the first paddle. */
-//        render(VAOs[PADDLE],
-//               program_shader,
-//               num_floats*sizeof(GLfloat),
-//               uloc_transform,
-//               matrix_unity);
-//
-//        /* Render the second paddle. */
-//        render(VAOs[PADDLE],
-//               program_shader,
-//               num_floats*sizeof(GLfloat),
-//               uloc_transform,
-//               matrix_unity);
+        /* Render the right paddle. */
+        render(VAOs[PADDLE],
+               program_shader,
+               num_floats*sizeof(GLfloat),
+               uloc_transform,
+               transformation_matrixes[ID_RIGHT_PADDLE]);
+
+        /* Render the left paddle. */
+        render(VAOs[PADDLE],
+               program_shader,
+               num_floats*sizeof(GLfloat),
+               uloc_transform,
+               transformation_matrixes[ID_LEFT_PADDLE]);
 
         /* Render the ball. */
         render(VAOs[BALL],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
-               matrix_unity);
+               transformation_matrixes[ID_BALL]);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
