@@ -8,6 +8,23 @@
 
 #define SIZE(x) sizeof(x)/sizeof(x[0])
 
+typedef GLfloat m4[4][4];
+
+
+/* Enumerate unique objects. */
+enum {
+    ID_RIGHT_PADDLE,
+    ID_LEFT_PADDLE,
+    ID_BALL,
+    ID_NUM,
+};
+
+
+typedef struct Event_Data {
+    GLFWwindow * window;
+    m4 * transformation_matrices;
+} Event_Data;
+
 
 bool map_keys[1024];
 
@@ -34,9 +51,23 @@ void error(const char * message, bool fatal) {
 }
 
 
-void react_to_events(GLFWwindow * window) {
+void react_to_events(Event_Data event_data) {
+
+    GLFWwindow * window = event_data.window;
+    m4 * transformation_matrices = event_data.transformation_matrices;
+
+    /* Close window on ESC. */
     if (map_keys[GLFW_KEY_ESCAPE]) {
         glfwSetWindowShouldClose(window, GL_TRUE);
+    }
+
+    GLfloat pad_speed = 0.05f;
+
+    /* Move right paddle up and down with arrow keys. */
+    if (map_keys[GLFW_KEY_UP]) {
+        transformation_matrices[ID_RIGHT_PADDLE][1][3] += pad_speed;
+    } else if (map_keys[GLFW_KEY_DOWN]) {
+        transformation_matrices[ID_RIGHT_PADDLE][1][3] -= pad_speed;
     }
 }
 
@@ -186,9 +217,6 @@ typedef enum entities {
     BALL,
     NUM_ENTITIES,
 } entities;
-
-
-typedef GLfloat m4[4][4];
 
 
 #define m4_unity (m4){\
@@ -387,25 +415,21 @@ int main(void) {
     // == Data and matrix setup.
     // ================================================================
 
-    /* Enumerate unique objects. */
-    enum id_transforms {
-        ID_RIGHT_PADDLE,
-        ID_LEFT_PADDLE,
-        ID_BALL,
-        ID_NUM,
-    };
-
     /* Create array with transformation matrices. */
-    m4 transformation_matrixes[ID_NUM];
+    m4 transformation_matrices[ID_NUM];
 
     /* Initialize all transformation matrices to unity matrix. */
     for (size_t i=0; i<ID_NUM; i++) {
-        m4_set(transformation_matrixes[i], m4_unity);
+        m4_set(transformation_matrices[i], m4_unity);
     }
 
     /* Set starting positions for each object. */
-    transformation_matrixes[ID_RIGHT_PADDLE][0][3] = 0.8f;
-    transformation_matrixes[ID_LEFT_PADDLE][0][3] = -0.8f;
+    transformation_matrices[ID_RIGHT_PADDLE][0][3] = 0.8f;
+    transformation_matrices[ID_LEFT_PADDLE][0][3] = -0.8f;
+
+    Event_Data event_data = {0};
+    event_data.window = window;
+    event_data.transformation_matrices = &transformation_matrices[0];
 
     // ================================================================
     // == Main loop.
@@ -417,7 +441,7 @@ int main(void) {
         glfwPollEvents();
 
         /* React to polled events. */
-        react_to_events(window);
+        react_to_events(event_data);
 
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
@@ -427,21 +451,21 @@ int main(void) {
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
-               transformation_matrixes[ID_RIGHT_PADDLE]);
+               transformation_matrices[ID_RIGHT_PADDLE]);
 
         /* Render the left paddle. */
         render(VAOs[PADDLE],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
-               transformation_matrixes[ID_LEFT_PADDLE]);
+               transformation_matrices[ID_LEFT_PADDLE]);
 
         /* Render the ball. */
         render(VAOs[BALL],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
-               transformation_matrixes[ID_BALL]);
+               transformation_matrices[ID_BALL]);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
