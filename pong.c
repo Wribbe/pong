@@ -648,8 +648,19 @@ int main(void) {
     /* Set up render information. */
     Render_Data * render_data[NUM_ENTITIES];
 
+    /* Set up render data for paddles. */
     Render_Data render_paddle = (Render_Data){
         .VAO = VAOs[PADDLE],
+        .program_shader = program_shader,
+        .size_data = num_floats*sizeof(GLfloat),
+        .uloc_transform = uloc_transform,
+        .transformation_matrices = transformation_matrices,
+        .render_function = &render_basic,
+    };
+
+    /* Set up render data for ball.*/
+    Render_Data render_ball= (Render_Data){
+        .VAO = VAOs[BALL],
         .program_shader = program_shader,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
@@ -676,18 +687,10 @@ int main(void) {
         render(render_paddle, ID_PADDLE_RIGHT);
 
         /* Render the left paddle. */
-        render_basic(VAOs[PADDLE],
-               program_shader,
-               num_floats*sizeof(GLfloat),
-               uloc_transform,
-               transformation_matrices[ID_PADDLE_LEFT]);
+        render(render_paddle, ID_PADDLE_LEFT);
 
         /* Render the ball. */
-        render_basic(VAOs[BALL],
-               program_shader,
-               num_floats*sizeof(GLfloat),
-               uloc_transform,
-               transformation_matrices[ID_BALL]);
+        render(render_ball, ID_BALL);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
