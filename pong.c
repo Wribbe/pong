@@ -56,7 +56,9 @@ typedef struct Render_Data {
                              GLuint,
                              size_t,
                              GLuint,
-                             m4);
+                             m4,
+                             void *);
+    void * data;
 } Render_Data;
 
 
@@ -223,31 +225,68 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
 
 
 void render_basic(GLuint vertex_array,
-            GLuint program_shader,
-            size_t s_vertices,
-            GLuint uloc_transform,
-            GLfloat matrix_transform[4][4]) {
+        GLuint program_shader,
+        size_t s_vertices,
+        GLuint uloc_transform,
+        m4  matrix_transform,
+        void * data) {
 
-        /* Set the current linker program that should be used. */
-        glUseProgram(program_shader);
+    UNUSED(data);
 
-        /* Set transformation matrix. */
-        size_t count = 1;
-        GLboolean transpose = GL_TRUE;
-        GLfloat * ptr_value = &matrix_transform[0][0];
-        glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
+    /* Set the current linker program that should be used. */
+    glUseProgram(program_shader);
 
-        /* Bind the VAO that should be used. */
-        glBindVertexArray(vertex_array);
+    /* Set transformation matrix. */
+    size_t count = 1;
+    GLboolean transpose = GL_TRUE;
+    GLfloat * ptr_value = &matrix_transform[0][0];
+    glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
 
-        /* Draw the vertices as triangles. */
-        glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
+    /* Bind the VAO that should be used. */
+    glBindVertexArray(vertex_array);
 
-        /* Unset the shader program */
-        glUseProgram(program_shader);
+    /* Draw the vertices as triangles. */
+    glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
 
-        /* Unbind the vertex array. */
-        glBindVertexArray(0);
+    /* Unset the shader program */
+    glUseProgram(program_shader);
+
+    /* Unbind the vertex array. */
+    glBindVertexArray(0);
+
+}
+
+
+void render_display(GLuint vertex_array,
+        GLuint program_shader,
+        size_t s_vertices,
+        GLuint uloc_transform,
+        m4  matrix_transform,
+        void * data) {
+    /* Render function for the display entities. */
+
+    UNUSED(data);
+
+    /* Set the current linker program that should be used. */
+    glUseProgram(program_shader);
+
+    /* Set transformation matrix. */
+    size_t count = 1;
+    GLboolean transpose = GL_TRUE;
+    GLfloat * ptr_value = &matrix_transform[0][0];
+    glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
+
+    /* Bind the VAO that should be used. */
+    glBindVertexArray(vertex_array);
+
+    /* Draw the vertices as triangles. */
+    glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
+
+    /* Unset the shader program */
+    glUseProgram(program_shader);
+
+    /* Unbind the vertex array. */
+    glBindVertexArray(0);
 }
 
 
@@ -258,7 +297,8 @@ void render(Render_Data render_data, GLuint id_transformation) {
                                 render_data.program_shader,
                                 render_data.size_data,
                                 render_data.uloc_transform,
-                                render_data.transformation_matrices[id_transformation]);
+                                render_data.transformation_matrices[id_transformation],
+                                render_data.data);
 }
 
 
@@ -649,23 +689,36 @@ int main(void) {
     Render_Data * render_data[NUM_ENTITIES];
 
     /* Set up render data for paddles. */
-    Render_Data render_paddle = (Render_Data){
+    Render_Data data_render_paddle = (Render_Data){
         .VAO = VAOs[PADDLE],
         .program_shader = program_shader,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_basic,
+        .data = (void *)0,
     };
 
     /* Set up render data for ball.*/
-    Render_Data render_ball= (Render_Data){
+    Render_Data data_render_ball= (Render_Data){
         .VAO = VAOs[BALL],
         .program_shader = program_shader,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_basic,
+        .data = (void *)0,
+    };
+
+    /* Set up render data for displays.*/
+    Render_Data data_render_display = (Render_Data){
+        .VAO = VAOs[BALL],
+        .program_shader = program_shader,
+        .size_data = num_floats*sizeof(GLfloat),
+        .uloc_transform = uloc_transform,
+        .transformation_matrices = transformation_matrices,
+        .render_function = &render_display,
+        .data = (void *)0,
     };
 
     // ================================================================
@@ -684,13 +737,13 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the right paddle. */
-        render(render_paddle, ID_PADDLE_RIGHT);
+        render(data_render_paddle, ID_PADDLE_RIGHT);
 
         /* Render the left paddle. */
-        render(render_paddle, ID_PADDLE_LEFT);
+        render(data_render_paddle, ID_PADDLE_LEFT);
 
         /* Render the ball. */
-        render(render_ball, ID_BALL);
+        render(data_render_ball, ID_BALL);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
