@@ -13,9 +13,11 @@ typedef GLfloat m4[4][4];
 
 /* Enumerate unique objects. */
 enum {
-    ID_RIGHT_PADDLE,
-    ID_LEFT_PADDLE,
+    ID_PADDLE_RIGHT,
+    ID_PADDLE_LEFT,
     ID_BALL,
+    ID_DISPLAY_RIGHT,
+    ID_DISPLAY_LEFT,
     ID_NUM,
 };
 
@@ -42,6 +44,20 @@ typedef struct Event_Data {
     m4 * transformation_matrices;
     Item_Data * items;
 } Event_Data;
+
+
+typedef struct Render_Data {
+    GLuint VAO;
+    GLuint program_shader;
+    size_t size_data;
+    GLuint uloc_transform;
+    m4 * transformation_matrices;
+    void (* render_function)(GLuint,
+                             GLuint,
+                             size_t,
+                             GLuint,
+                             m4);
+} Render_Data;
 
 
 bool map_keys[1024];
@@ -80,8 +96,8 @@ void react_to_events(Event_Data event_data, Item_Data * items, Environment_Data 
     }
 
     /* Get item objects for left and right paddle. */
-    Item_Data item_right = items[ID_RIGHT_PADDLE];
-    Item_Data item_left = items[ID_LEFT_PADDLE];
+    Item_Data item_right = items[ID_PADDLE_RIGHT];
+    Item_Data item_left = items[ID_PADDLE_LEFT];
 
     /* Get delta height from environment. */
     GLfloat delta_height = env.delta_height;
@@ -95,8 +111,8 @@ void react_to_events(Event_Data event_data, Item_Data * items, Environment_Data 
     GLfloat speed_left_float = speed_left_pixel * delta_height;
 
     /* Grab pointers to height values for right and left pad. */
-    GLfloat * ptr_pos_right = &transformation_matrices[ID_RIGHT_PADDLE][1][3];
-    GLfloat * ptr_pos_left = &transformation_matrices[ID_LEFT_PADDLE][1][3];
+    GLfloat * ptr_pos_right = &transformation_matrices[ID_PADDLE_RIGHT][1][3];
+    GLfloat * ptr_pos_left = &transformation_matrices[ID_PADDLE_LEFT][1][3];
 
     /* Calculate current positions in pixels. */
     GLint pos_right = *ptr_pos_right/delta_height;
@@ -104,6 +120,10 @@ void react_to_events(Event_Data event_data, Item_Data * items, Environment_Data 
 
     /* Create variables for storing the next height value. */
     GLint next_right_pos, next_left_pos;
+
+    UNUSED(next_left_pos);
+    UNUSED(pos_left);
+    UNUSED(speed_left_float);
 
     /* Move right paddle up and down with arrow keys. */
     if (map_keys[GLFW_KEY_UP]) {
@@ -202,7 +222,7 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
 }
 
 
-void render(GLuint vertex_array,
+void render_basic(GLuint vertex_array,
             GLuint program_shader,
             size_t s_vertices,
             GLuint uloc_transform,
@@ -228,6 +248,17 @@ void render(GLuint vertex_array,
 
         /* Unbind the vertex array. */
         glBindVertexArray(0);
+}
+
+
+void render(Render_Data render_data, GLuint id_transformation) {
+    /* Take Render_Data object and id_transfomation and use the defined render
+     * function and supplied data to render the object. */
+    render_data.render_function(render_data.VAO,
+                                render_data.program_shader,
+                                render_data.size_data,
+                                render_data.uloc_transform,
+                                render_data.transformation_matrices[id_transformation]);
 }
 
 
@@ -284,6 +315,61 @@ void m4_set(m4 dest, m4 source) {
     }
 }
 
+
+/* Create struct for Display_Pixel. */
+typedef struct Display_Element_Data {
+    GLboolean on;
+    GLint pos_x;
+    GLint pos_y;
+} Display_Element_Data;
+
+
+/* Create Display struct for keeping score. */
+typedef struct Display {
+    GLint pos_x;
+    GLint pos_y;
+    Display_Element_Data elements[15];
+    GLuint current_value;
+    GLboolean left_aligned;
+} Display;
+
+
+void setup_display(Display display,
+                   GLint pos_x,
+                   GLint pos_y,
+                   GLuint current_value,
+                   GLboolean left_alighned,
+                   Item_Data * items) {
+    /* Populate Display 'display' based on data from items. */
+
+    /* Get element data from items. */
+    Item_Data element_item = items[ID_BALL];
+    GLint width = element_item.width;
+    GLint height = element_item.height;
+
+    /* Calculate offset for the first top left element. */
+    GLint pos_base_x = pos_x + width/2;
+    GLint pos_base_y = pos_y + height/2;
+
+    /* Construct offset table for 'elements' array. */
+    GLint display_width = 3;
+    GLint display_height = 5;
+    GLint index, pos_element_x, pos_element_y;
+    for (GLint i=0; i<display_height; i++) {
+        for (GLint j=0; j<display_width; j++) {
+            /* Calculate element index and offset. */
+            index = j + i*display_width;
+            pos_element_x = pos_base_x + width * i;
+            pos_element_y = pos_base_y + height * j;
+            /* Populate element at index. */
+            display.elements[index] = (Display_Element_Data){
+                .on = true, /* Currently always on. */
+                .pos_x = pos_element_x,
+                .pos_y = pos_element_y,
+            };
+        }
+    }
+}
 
 int main(void) {
 
@@ -347,8 +433,8 @@ int main(void) {
     }
 
     /* Set starting positions for each object. */
-    transformation_matrices[ID_RIGHT_PADDLE][0][3] = 0.8f;
-    transformation_matrices[ID_LEFT_PADDLE][0][3] = -0.8f;
+    transformation_matrices[ID_PADDLE_RIGHT][0][3] = 0.8f;
+    transformation_matrices[ID_PADDLE_LEFT][0][3] = -0.8f;
 
     /* Paddle dimensions in pixels. */
     GLuint paddle_width = 20;
@@ -366,7 +452,7 @@ int main(void) {
     Item_Data items[ID_NUM] = {0};
 
     /* Set item data for right paddle. */
-    items[ID_RIGHT_PADDLE] = (Item_Data){
+    items[ID_PADDLE_RIGHT] = (Item_Data){
         .width=paddle_width,
         .height=paddle_height,
         .speed=paddle_speed,
@@ -374,7 +460,7 @@ int main(void) {
     };
 
     /* Set item data for left paddle. */
-    items[ID_LEFT_PADDLE] = (Item_Data){
+    items[ID_PADDLE_LEFT] = (Item_Data){
         .width=paddle_width,
         .height=paddle_height,
         .speed=paddle_speed,
@@ -393,6 +479,34 @@ int main(void) {
     event_data.window = window;
     event_data.transformation_matrices = &transformation_matrices[0];
 
+    /* Set up two two-digit displays for score-keeping. */
+    Display display_right = {0};
+    Display display_left = {0};
+
+    /* Display data. */
+    GLint pos_display_x = 10;
+    GLint pos_display_y = 10;
+    GLint pos_display_x_offset = 20;
+
+    GLuint etc_display_value = 3;
+    GLboolean etc_display_left_aligned = true;
+
+    /* Set up right display. */
+    setup_display(display_right,
+                  pos_display_x,
+                  pos_display_y,
+                  etc_display_value,
+                  etc_display_left_aligned,
+                  items);
+
+    /* Set up left display. */
+    setup_display(display_left,
+                  pos_display_x+pos_display_x_offset,
+                  pos_display_y,
+                  etc_display_value,
+                  !etc_display_left_aligned,
+                  items);
+
     // ================================================================
     // == Buffers.
     // ================================================================
@@ -405,7 +519,7 @@ int main(void) {
 
     /* Create vertices. */
     GLfloat vertices[num_floats];
-    square(vertices, items[ID_LEFT_PADDLE], environment_data);
+    square(vertices, items[ID_PADDLE_LEFT], environment_data);
     square(vertices, items[ID_BALL], environment_data);
 
     /* Create buffers. */
@@ -528,6 +642,22 @@ int main(void) {
     GLuint uloc_transform = glGetUniformLocation(program_shader, "transform");
 
     // ================================================================
+    // == Set up render data.
+    // ================================================================
+
+    /* Set up render information. */
+    Render_Data * render_data[NUM_ENTITIES];
+
+    Render_Data render_paddle = (Render_Data){
+        .VAO = VAOs[PADDLE],
+        .program_shader = program_shader,
+        .size_data = num_floats*sizeof(GLfloat),
+        .uloc_transform = uloc_transform,
+        .transformation_matrices = transformation_matrices,
+        .render_function = &render_basic,
+    };
+
+    // ================================================================
     // == Main loop.
     // ================================================================
 
@@ -543,21 +673,17 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the right paddle. */
-        render(VAOs[PADDLE],
-               program_shader,
-               num_floats*sizeof(GLfloat),
-               uloc_transform,
-               transformation_matrices[ID_RIGHT_PADDLE]);
+        render(render_paddle, ID_PADDLE_RIGHT);
 
         /* Render the left paddle. */
-        render(VAOs[PADDLE],
+        render_basic(VAOs[PADDLE],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
-               transformation_matrices[ID_LEFT_PADDLE]);
+               transformation_matrices[ID_PADDLE_LEFT]);
 
         /* Render the ball. */
-        render(VAOs[BALL],
+        render_basic(VAOs[BALL],
                program_shader,
                num_floats*sizeof(GLfloat),
                uloc_transform,
