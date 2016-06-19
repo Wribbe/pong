@@ -8,6 +8,16 @@
 
 #define SIZE(x) sizeof(x)/sizeof(x[0])
 
+#define NUM_ELEMENTS 15
+
+#define m4_unity (m4){\
+    {1.0f, 0.0f, 0.0f, 0.0f}, \
+    {0.0f, 1.0f, 0.0f, 0.0f}, \
+    {0.0f, 0.0f, 1.0f, 0.0f}, \
+    {0.0f, 0.0f, 0.0f, 1.0f}, \
+}
+
+
 typedef GLfloat m4[4][4];
 
 
@@ -31,12 +41,13 @@ typedef struct Item_Data {
 } Item_Data;
 
 
-typedef struct Environment_Data {
+typedef struct Data_Environment {
     GLint width;
     GLint height;
-    GLfloat delta_width;
-    GLfloat delta_height;
-} Environment_Data;
+    GLfloat delta_width; /* Float value per pixel along width. */
+    GLfloat delta_height;/* Float value per pixel along height. */
+
+} Data_Environment;
 
 
 typedef struct Event_Data {
@@ -57,9 +68,28 @@ typedef struct Render_Data {
                              size_t,
                              GLuint,
                              m4,
-                             void *);
-    void * data;
+                             void *,
+                             size_t);
 } Render_Data;
+
+
+/* Create struct for Display_Pixel. */
+typedef struct Display_Element_Data {
+    GLboolean on;
+    GLint pos_x;
+    GLint pos_y;
+} Display_Element_Data;
+
+
+/* Create Display struct for keeping score. */
+typedef struct Display {
+    GLint pos_x;
+    GLint pos_y;
+    Display_Element_Data elements[NUM_ELEMENTS];
+    GLuint current_value;
+    GLboolean left_aligned;
+    Data_Environment * data_environment;
+} Display;
 
 
 bool map_keys[1024];
@@ -87,7 +117,7 @@ void error(const char * message, bool fatal) {
 }
 
 
-void react_to_events(Event_Data event_data, Item_Data * items, Environment_Data env) {
+void react_to_events(Event_Data event_data, Item_Data * items, Data_Environment env) {
 
     GLFWwindow * window = event_data.window;
     m4 * transformation_matrices = event_data.transformation_matrices;
@@ -224,14 +254,25 @@ void shaders_delete(GLuint * ids, size_t num_ids) {
 }
 
 
+void m4_set(m4 dest, m4 source) {
+    for(size_t i=0; i<4; i++) {
+        for(size_t j=0; j<4; j++) {
+            dest[i][j] = source[i][j];
+        }
+    }
+}
+
+
 void render_basic(GLuint vertex_array,
-        GLuint program_shader,
-        size_t s_vertices,
-        GLuint uloc_transform,
-        m4  matrix_transform,
-        void * data) {
+                  GLuint program_shader,
+                  size_t s_vertices,
+                  GLuint uloc_transform,
+                  m4  matrix_transform,
+                  void * data,
+                  size_t size_data) {
 
     UNUSED(data);
+    UNUSED(size_data);
 
     /* Set the current linker program that should be used. */
     glUseProgram(program_shader);
@@ -249,7 +290,7 @@ void render_basic(GLuint vertex_array,
     glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
 
     /* Unset the shader program */
-    glUseProgram(program_shader);
+    glUseProgram(0);
 
     /* Unbind the vertex array. */
     glBindVertexArray(0);
@@ -258,14 +299,33 @@ void render_basic(GLuint vertex_array,
 
 
 void render_display(GLuint vertex_array,
-        GLuint program_shader,
-        size_t s_vertices,
-        GLuint uloc_transform,
-        m4  matrix_transform,
-        void * data) {
+                    GLuint program_shader,
+                    size_t s_vertices,
+                    GLuint uloc_transform,
+                    m4  matrix_transform,
+                    void * data,
+                    size_t size_data) {
     /* Render function for the display entities. */
 
-    UNUSED(data);
+    /* Unpack data. */
+    Display * display_data = (Display*)data;
+
+    GLint pos_pixel_x = display_data->pos_x;
+    GLint pos_pixel_y = display_data->pos_y;
+    GLuint current_value = display_data->current_value;
+    GLboolean left_aligned = display_data->left_aligned;
+
+    /* Get elements. */
+    Display_Element_Data * elements = display_data->elements;
+
+    /* Get data_environment. */
+    Data_Environment * data_env = display_data->data_environment;
+    GLfloat delta_width = data_env->delta_width;
+    GLfloat delta_height = data_env->delta_height;
+
+    /* Set up a local transformation matrix. */
+    m4 transformation = {0};
+    m4_set(transformation, m4_unity);
 
     /* Set the current linker program that should be used. */
     glUseProgram(program_shader);
@@ -273,24 +333,40 @@ void render_display(GLuint vertex_array,
     /* Set transformation matrix. */
     size_t count = 1;
     GLboolean transpose = GL_TRUE;
-    GLfloat * ptr_value = &matrix_transform[0][0];
-    glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
+
+    GLfloat * ptr_value = &transformation[0][0];
 
     /* Bind the VAO that should be used. */
     glBindVertexArray(vertex_array);
 
-    /* Draw the vertices as triangles. */
-    glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
+    Display_Element_Data current_element;
+    /* Iterate over all the display entities. */
+    for (size_t i=0; i<NUM_ELEMENTS; i++) {
+        current_element = elements[i];
+
+        /* Set transformation x value. */
+        transformation[0][3] = (pos_pixel_x + current_element.pos_x) * delta_width;
+
+        /* Set transformation y value. */
+        transformation[1][3] = (pos_pixel_y + current_element.pos_y) * delta_height;
+
+        /* Set the transformation data for drawing. */
+        glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
+
+        /* Draw the vertices as triangles. */
+        glDrawArrays(GL_TRIANGLES, 0, s_vertices/3);
+    }
 
     /* Unset the shader program */
-    glUseProgram(program_shader);
+    glUseProgram(0);
 
     /* Unbind the vertex array. */
     glBindVertexArray(0);
 }
 
 
-void render(Render_Data render_data, GLuint id_transformation) {
+void render(Render_Data render_data, GLuint id_transformation, void * data,
+            size_t size_data) {
     /* Take Render_Data object and id_transfomation and use the defined render
      * function and supplied data to render the object. */
     render_data.render_function(render_data.VAO,
@@ -298,11 +374,12 @@ void render(Render_Data render_data, GLuint id_transformation) {
                                 render_data.size_data,
                                 render_data.uloc_transform,
                                 render_data.transformation_matrices[id_transformation],
-                                render_data.data);
+                                data,
+                                size_data);
 }
 
 
-void square(GLfloat * buffer, Item_Data item, Environment_Data env){
+void square(GLfloat * buffer, Item_Data item, Data_Environment env){
     /* Populate vertices with data points corresponding to a square with
      * width pixel_width and height pixel_height. */
 
@@ -339,47 +416,13 @@ typedef enum entities {
 } entities;
 
 
-#define m4_unity (m4){\
-    {1.0f, 0.0f, 0.0f, 0.0f}, \
-    {0.0f, 1.0f, 0.0f, 0.0f}, \
-    {0.0f, 0.0f, 1.0f, 0.0f}, \
-    {0.0f, 0.0f, 0.0f, 1.0f}, \
-}
-
-
-void m4_set(m4 dest, m4 source) {
-    for(size_t i=0; i<4; i++) {
-        for(size_t j=0; j<4; j++) {
-            dest[i][j] = source[i][j];
-        }
-    }
-}
-
-
-/* Create struct for Display_Pixel. */
-typedef struct Display_Element_Data {
-    GLboolean on;
-    GLint pos_x;
-    GLint pos_y;
-} Display_Element_Data;
-
-
-/* Create Display struct for keeping score. */
-typedef struct Display {
-    GLint pos_x;
-    GLint pos_y;
-    Display_Element_Data elements[15];
-    GLuint current_value;
-    GLboolean left_aligned;
-} Display;
-
-
-void setup_display(Display display,
+void setup_display(Display * display,
                    GLint pos_x,
                    GLint pos_y,
                    GLuint current_value,
-                   GLboolean left_alighned,
-                   Item_Data * items) {
+                   GLboolean left_aligned,
+                   Item_Data * items,
+                   Data_Environment * data_environment) {
     /* Populate Display 'display' based on data from items. */
 
     /* Get element data from items. */
@@ -389,7 +432,7 @@ void setup_display(Display display,
 
     /* Calculate offset for the first top left element. */
     GLint pos_base_x = pos_x + width/2;
-    GLint pos_base_y = pos_y + height/2;
+    GLint pos_base_y = pos_y - height/2;
 
     /* Construct offset table for 'elements' array. */
     GLint display_width = 3;
@@ -399,16 +442,23 @@ void setup_display(Display display,
         for (GLint j=0; j<display_width; j++) {
             /* Calculate element index and offset. */
             index = j + i*display_width;
-            pos_element_x = pos_base_x + width * i;
-            pos_element_y = pos_base_y + height * j;
+            pos_element_x = pos_base_x + width * j;
+            pos_element_y = pos_base_y - height * i;
             /* Populate element at index. */
-            display.elements[index] = (Display_Element_Data){
+            display->elements[index] = (Display_Element_Data){
                 .on = true, /* Currently always on. */
                 .pos_x = pos_element_x,
                 .pos_y = pos_element_y,
             };
         }
     }
+
+    /* Set up rest of display values. */
+    display->pos_x = pos_x;
+    display->pos_y = pos_y;
+    display->current_value = current_value;
+    display->left_aligned = left_aligned;
+    display->data_environment = data_environment;
 }
 
 int main(void) {
@@ -457,7 +507,7 @@ int main(void) {
     // ================================================================
 
     /* Create and populate environment data. */
-    Environment_Data environment_data = {
+    Data_Environment data_environment = {
         .width = WIDTH,
         .height = HEIGHT,
         .delta_width = 2.0f/WIDTH,
@@ -524,28 +574,31 @@ int main(void) {
     Display display_left = {0};
 
     /* Display data. */
-    GLint pos_display_x = 10;
-    GLint pos_display_y = 10;
-    GLint pos_display_x_offset = 20;
+    GLint pos_display_x = 30;
+    GLint pos_display_y = 140;
 
     GLuint etc_display_value = 3;
     GLboolean etc_display_left_aligned = true;
 
     /* Set up right display. */
-    setup_display(display_right,
+    setup_display(&display_right,
                   pos_display_x,
                   pos_display_y,
                   etc_display_value,
                   etc_display_left_aligned,
-                  items);
+                  items,
+                  &data_environment);
 
     /* Set up left display. */
-    setup_display(display_left,
-                  pos_display_x+pos_display_x_offset,
-                  pos_display_y,
+    setup_display(&display_left,
+//                  -pos_display_x,
+//                  pos_display_y,
+                  0-2*ball_width,
+                  0,
                   etc_display_value,
                   !etc_display_left_aligned,
-                  items);
+                  items,
+                  &data_environment);
 
     // ================================================================
     // == Buffers.
@@ -559,8 +612,8 @@ int main(void) {
 
     /* Create vertices. */
     GLfloat vertices[num_floats];
-    square(vertices, items[ID_PADDLE_LEFT], environment_data);
-    square(vertices, items[ID_BALL], environment_data);
+    square(vertices, items[ID_PADDLE_LEFT], data_environment);
+    square(vertices, items[ID_BALL], data_environment);
 
     /* Create buffers. */
     GLuint VBOs[NUM_ENTITIES];
@@ -696,7 +749,6 @@ int main(void) {
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_basic,
-        .data = (void *)0,
     };
 
     /* Set up render data for ball.*/
@@ -707,7 +759,6 @@ int main(void) {
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_basic,
-        .data = (void *)0,
     };
 
     /* Set up render data for displays.*/
@@ -718,7 +769,6 @@ int main(void) {
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_display,
-        .data = (void *)0,
     };
 
     // ================================================================
@@ -731,19 +781,27 @@ int main(void) {
         glfwPollEvents();
 
         /* React to polled events. */
-        react_to_events(event_data, items, environment_data);
+        react_to_events(event_data, items, data_environment);
 
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the right paddle. */
-        render(data_render_paddle, ID_PADDLE_RIGHT);
+        render(data_render_paddle, ID_PADDLE_RIGHT, (void*)0, 0);
 
         /* Render the left paddle. */
-        render(data_render_paddle, ID_PADDLE_LEFT);
+        render(data_render_paddle, ID_PADDLE_LEFT, (void*)0, 0);
 
         /* Render the ball. */
-        render(data_render_ball, ID_BALL);
+        render(data_render_ball, ID_BALL, (void*)0, 0);
+
+        /* Render right display. */
+        render(data_render_display, ID_DISPLAY_RIGHT, (void*)&display_right,
+               NUM_ELEMENTS);
+
+        /* Render left display. */
+        render(data_render_display, ID_DISPLAY_LEFT, (void*)&display_left,
+               NUM_ELEMENTS);
 
         /* Swap buffers. */
         glfwSwapBuffers(window);
