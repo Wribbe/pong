@@ -344,6 +344,10 @@ void render_display(GLuint vertex_array,
     for (size_t i=0; i<NUM_ELEMENTS; i++) {
         current_element = elements[i];
 
+        if (current_element.on == GL_FALSE) {
+            continue;
+        }
+
         /* Set transformation x value. */
         GLfloat float_x = current_element.pos_x * delta_width;
         transformation[0][3] = float_x;
@@ -454,7 +458,7 @@ void setup_display(Display * display,
             pos_element_y = pos_base_y - height * i;
             /* Populate element at index. */
             display->elements[index] = (Display_Element_Data){
-                .on = true, /* Currently always on. */
+                .on = GL_TRUE, /* Currently always on. */
                 .pos_x = pos_element_x,
                 .pos_y = pos_element_y,
             };
@@ -468,6 +472,82 @@ void setup_display(Display * display,
     display->left_aligned = left_aligned;
     display->data_environment = data_environment;
 }
+
+
+void display_set(Display * display, GLint value) {
+    /* Set display to value given in 'value'. */
+
+    GLint numbers[][NUM_ELEMENTS] = {
+        /* 0 */
+       {1, 1, 1,
+        1, 0, 1,
+        1, 0, 1,
+        1, 0, 1,
+        1, 1, 1,},
+        /* 1 */
+       {0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,},
+        /* 2 */
+       {1, 1, 1,
+        0, 0, 1,
+        1, 1, 1,
+        1, 0, 0,
+        1, 1, 1,},
+        /* 3 */
+       {1, 1, 1,
+        0, 0, 1,
+        1, 1, 1,
+        0, 0, 1,
+        1, 1, 1,},
+        /* 4 */
+       {1, 0, 1,
+        1, 0, 1,
+        1, 1, 1,
+        0, 0, 1,
+        0, 0, 1,},
+        /* 5 */
+       {1, 1, 1,
+        1, 0, 0,
+        1, 1, 1,
+        0, 0, 1,
+        1, 1, 1,},
+        /* 6 */
+       {1, 1, 1,
+        1, 0, 0,
+        1, 1, 1,
+        1, 0, 1,
+        1, 1, 1,},
+        /* 7 */
+       {1, 1, 1,
+        0, 0, 1,
+        0, 0, 1,
+        0, 1, 0,
+        1, 0, 0,},
+        /* 8 */
+       {1, 1, 1,
+        1, 0, 1,
+        1, 1, 1,
+        1, 0, 1,
+        1, 1, 1,},
+        /* 9 */
+       {1, 1, 1,
+        1, 0, 1,
+        1, 1, 1,
+        0, 0, 1,
+        1, 1, 1,},
+    };
+
+    GLint * num_list = numbers[value];
+    for (size_t i=0; i<NUM_ELEMENTS; i++) {
+        printf("status [%d]: %d\n", i, display->elements[i].on);
+        display->elements[i].on = num_list[i];
+        printf("status [%d]: %d\n", i, display->elements[i].on);
+    }
+}
+
 
 int main(void) {
 
@@ -596,6 +676,7 @@ int main(void) {
                   etc_display_left_aligned,
                   items,
                   &data_environment);
+    display_set(&display_right, 0);
 
     /* Set up left display. */
     setup_display(&display_left,
@@ -605,6 +686,7 @@ int main(void) {
                   !etc_display_left_aligned,
                   items,
                   &data_environment);
+    display_set(&display_left, 2);
 
     // ================================================================
     // == Buffers.
