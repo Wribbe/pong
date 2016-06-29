@@ -547,6 +547,13 @@ void display_set(Display * display, GLint value) {
 }
 
 
+void  move_non_controlled_items(Item_Data * items, Data_Environment env) {
+    UNUSED(items);
+    UNUSED(env);
+    printf("Calling move_non_controlled_items function.\n");
+}
+
+
 int main(void) {
 
     // ================================================================
@@ -868,6 +875,9 @@ int main(void) {
 
         /* React to polled events. */
         react_to_events(event_data, items, data_environment);
+
+        /* Move the world. */
+        move_non_controlled_items(items, data_environment);
 
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
