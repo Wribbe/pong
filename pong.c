@@ -31,11 +31,17 @@ enum {
     ID_NUM,
 };
 
+typedef struct v3 {
+    GLfloat x;
+    GLfloat y;
+    GLfloat z;
+} v3;
+
 
 typedef struct Item_Data {
     GLint width;
     GLint height;
-    GLint speed;
+    v3 speed;
     GLuint id;
     GLuint offset;
 } Item_Data;
@@ -135,8 +141,8 @@ void react_to_events(Event_Data event_data, Item_Data * items, Data_Environment 
     GLfloat delta_height = env.delta_height;
 
     /* Get pixel speeds for paddles. */
-    GLint speed_right_pixel = item_right.speed;
-    GLint speed_left_pixel = item_left.speed;
+    GLint speed_right_pixel = item_right.speed.y;
+    GLint speed_left_pixel = item_left.speed.y;
 
     /* Convert pixel speed.to float speed for both paddles. */
     GLfloat speed_right_float = speed_right_pixel * delta_height;
@@ -147,8 +153,8 @@ void react_to_events(Event_Data event_data, Item_Data * items, Data_Environment 
     GLfloat * ptr_pos_left = &transformation_matrices[ID_PADDLE_LEFT][1][3];
 
     /* Calculate current positions in pixels. */
-    GLint pos_right = *ptr_pos_right/delta_height;
-    GLint pos_left = *ptr_pos_left/delta_height;
+    GLfloat pos_right = *ptr_pos_right/delta_height;
+    GLfloat pos_left = *ptr_pos_left/delta_height;
 
     /* Create variables for storing the next height value. */
     GLint next_right_pos, next_left_pos;
@@ -267,7 +273,7 @@ void render_basic(GLuint vertex_array,
                   GLuint program_shader,
                   size_t s_vertices,
                   GLuint uloc_transform,
-                  m4  matrix_transform,
+                  m4 matrix_transform,
                   void * data,
                   size_t size_data) {
 
@@ -281,6 +287,9 @@ void render_basic(GLuint vertex_array,
     size_t count = 1;
     GLboolean transpose = GL_TRUE;
     GLfloat * ptr_value = &matrix_transform[0][0];
+
+    printf("x: %f, y: %f\n", matrix_transform[0][3], matrix_transform[1][3]);
+
     glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
 
     /* Bind the VAO that should be used. */
@@ -547,6 +556,46 @@ void display_set(Display * display, GLint value) {
 }
 
 
+void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Environment env) {
+
+    m4 * transformation_matrices = events.transformation_matrices;
+
+    GLfloat * pos_ball_x = &transformation_matrices[ID_BALL][0][3];
+    GLfloat * pos_ball_y = &transformation_matrices[ID_BALL][1][3];
+//
+//    GLfloat * transform_ball = transformation_matrices[ID_BALL];
+//
+//    GLfloat * pos_ball_x = &transform_ball[3];
+//
+
+    GLfloat speed_ball_x = items[ID_BALL].speed.x;
+    GLfloat speed_ball_y = items[ID_BALL].speed.y;
+
+    printf("%f\n", speed_ball_x);
+
+    GLfloat width_ball = items[ID_BALL].width;
+    GLfloat height_ball = items[ID_BALL].height;
+
+    GLfloat ball_next_x = *pos_ball_x + speed_ball_x*env.delta_width;
+    GLfloat ball_next_y = *pos_ball_y + speed_ball_y*env.delta_height;
+
+//    GLfloat ball_next_x = *pos_ball_x + 0.001f;
+//    GLfloat ball_next_y = *pos_ball_y + 0.001f;
+
+    printf("ball_next_x: %f\n", ball_next_x);
+
+    if (ball_next_x > 1.0f) {
+        *pos_ball_x = 1.0f - (width_ball*env.delta_width)*0.5f;
+        items[ID_BALL].speed.x *= -1.0f;
+    } else if (ball_next_x < -1.0f) {
+        *pos_ball_x = -1.0f + (width_ball*env.delta_width)*0.5f;
+        items[ID_BALL].speed.x *= -1.0f;
+    } else {
+        *pos_ball_x = ball_next_x;
+    }
+}
+
+
 int main(void) {
 
     // ================================================================
@@ -615,13 +664,14 @@ int main(void) {
     /* Paddle dimensions in pixels. */
     GLuint paddle_width = 20;
     GLuint paddle_height = 50;
-    GLuint paddle_speed = 17;
+    v3 paddle_speed = (v3){0.0f, 17.0f, 0.0f};
     GLuint paddle_offset = 0;
 
     /* Ball dimensions in pixels. */
     GLuint ball_width = 15;
     GLuint ball_height = 15;
-    GLuint ball_speed = 10;
+    GLfloat ball_speed_constant = 10.0f;
+    v3 ball_speed = (v3){ball_speed_constant, ball_speed_constant, 0.0f};
     GLuint ball_offset = 1;
 
     /* Create Item_Data list items */
@@ -868,6 +918,9 @@ int main(void) {
 
         /* React to polled events. */
         react_to_events(event_data, items, data_environment);
+
+        /* Move the world. */
+        move_non_controlled_items(event_data, items, data_environment);
 
         /* Clear screen. */
         glClear(GL_COLOR_BUFFER_BIT);
