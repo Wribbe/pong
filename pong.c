@@ -567,8 +567,32 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
 //
 //    GLfloat * pos_ball_x = &transform_ball[3];
 //
-    *pos_ball_x += items[ID_BALL].speed.x * env.delta_width;
-    *pos_ball_y += items[ID_BALL].speed.y * env.delta_height;
+
+    GLfloat speed_ball_x = items[ID_BALL].speed.x;
+    GLfloat speed_ball_y = items[ID_BALL].speed.y;
+
+    printf("%f\n", speed_ball_x);
+
+    GLfloat width_ball = items[ID_BALL].width;
+    GLfloat height_ball = items[ID_BALL].height;
+
+    GLfloat ball_next_x = *pos_ball_x + speed_ball_x*env.delta_width;
+    GLfloat ball_next_y = *pos_ball_y + speed_ball_y*env.delta_height;
+
+//    GLfloat ball_next_x = *pos_ball_x + 0.001f;
+//    GLfloat ball_next_y = *pos_ball_y + 0.001f;
+
+    printf("ball_next_x: %f\n", ball_next_x);
+
+    if (ball_next_x > 1.0f) {
+        *pos_ball_x = 1.0f - (width_ball*env.delta_width)*0.5f;
+        items[ID_BALL].speed.x *= -1.0f;
+    } else if (ball_next_x < -1.0f) {
+        *pos_ball_x = -1.0f + (width_ball*env.delta_width)*0.5f;
+        items[ID_BALL].speed.x *= -1.0f;
+    } else {
+        *pos_ball_x = ball_next_x;
+    }
 }
 
 
