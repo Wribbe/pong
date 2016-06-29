@@ -542,9 +542,7 @@ void display_set(Display * display, GLint value) {
 
     GLint * num_list = numbers[value];
     for (size_t i=0; i<NUM_ELEMENTS; i++) {
-        printf("status [%d]: %d\n", i, display->elements[i].on);
         display->elements[i].on = num_list[i];
-        printf("status [%d]: %d\n", i, display->elements[i].on);
     }
 }
 
