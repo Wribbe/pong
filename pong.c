@@ -288,8 +288,6 @@ void render_basic(GLuint vertex_array,
     GLboolean transpose = GL_TRUE;
     GLfloat * ptr_value = &matrix_transform[0][0];
 
-    printf("x: %f, y: %f\n", matrix_transform[0][3], matrix_transform[1][3]);
-
     glUniformMatrix4fv(uloc_transform, count, transpose, ptr_value);
 
     /* Bind the VAO that should be used. */
@@ -562,33 +560,38 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
 
     GLfloat * pos_ball_x = &transformation_matrices[ID_BALL][0][3];
     GLfloat * pos_ball_y = &transformation_matrices[ID_BALL][1][3];
-//
-//    GLfloat * transform_ball = transformation_matrices[ID_BALL];
-//
-//    GLfloat * pos_ball_x = &transform_ball[3];
-//
 
     GLfloat speed_ball_x = items[ID_BALL].speed.x;
     GLfloat speed_ball_y = items[ID_BALL].speed.y;
 
-    printf("%f\n", speed_ball_x);
-
     GLfloat width_ball = items[ID_BALL].width;
     GLfloat height_ball = items[ID_BALL].height;
+
+    GLfloat bound_limit_ball = (width_ball*env.delta_width)*0.5f;
 
     GLfloat ball_next_x = *pos_ball_x + speed_ball_x*env.delta_width;
     GLfloat ball_next_y = *pos_ball_y + speed_ball_y*env.delta_height;
 
-//    GLfloat ball_next_x = *pos_ball_x + 0.001f;
-//    GLfloat ball_next_y = *pos_ball_y + 0.001f;
+    GLfloat ball_bound_check_x;
+    GLfloat ball_bound_check_y;
 
-    printf("ball_next_x: %f\n", ball_next_x);
+    if (speed_ball_x < 0) {
+        ball_bound_check_x = ball_next_x - bound_limit_ball;
+    } else {
+        ball_bound_check_x = ball_next_x + bound_limit_ball;
+    }
 
-    if (ball_next_x > 1.0f) {
-        *pos_ball_x = 1.0f - (width_ball*env.delta_width)*0.5f;
+    if (speed_ball_y < 0) {
+        ball_bound_check_y = ball_next_y - bound_limit_ball;
+    } else {
+        ball_bound_check_y = ball_next_y + bound_limit_ball;
+    }
+
+    if (ball_bound_check_x > 1.0f) {
+        *pos_ball_x = 1.0f - bound_limit_ball;
         items[ID_BALL].speed.x *= -1.0f;
-    } else if (ball_next_x < -1.0f) {
-        *pos_ball_x = -1.0f + (width_ball*env.delta_width)*0.5f;
+    } else if (ball_bound_check_x < -1.0f) {
+        *pos_ball_x = -1.0f + bound_limit_ball;
         items[ID_BALL].speed.x *= -1.0f;
     } else {
         *pos_ball_x = ball_next_x;
