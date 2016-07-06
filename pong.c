@@ -554,6 +554,87 @@ void display_set(Display * display, GLint value) {
 }
 
 
+typedef struct Bound_Cube {
+    v3 front_top_left;
+    v3 back_bottom_right;
+} Bound_Cube;
+
+
+void get_bounds(Bound_Cube * cube, v3 position, Item_Data item, Data_Environment env) {
+
+    GLfloat relative_width_half = item.width*0.5f*env.delta_width;
+    GLfloat relative_height_half = item.width*0.5f*env.delta_height;
+
+    cube->front_top_left = (v3){
+        .x = position.x - relative_width_half,
+        .y = position.y + relative_height_half,
+        .z = 0.0f,
+    };
+
+    cube->back_bottom_right = (v3){
+        .x = position.x + relative_width_half,
+        .y = position.y - relative_height_half,
+        .z = 0.0f,
+    };
+}
+
+
+void print_bound_cube(Bound_Cube bound) {
+    printf("front_top_left: (x: %f, y: %f, z: %f).\n", bound.front_top_left.x,
+           bound.front_top_left.y, bound.front_top_left.z);
+
+    printf("back_bottom_right: (x: %f, y: %f, z: %f).\n",
+           bound.back_bottom_right.x, bound.back_bottom_right.y,
+           bound.back_bottom_right.z);
+}
+
+
+GLboolean intersects_point(v3 point, Bound_Cube bounds) {
+
+    v3 front_top_left = bounds.front_top_left;
+    v3 back_bottom_right = bounds.back_bottom_right;
+
+    if (point.x < front_top_left.x || point.x > back_bottom_right.x ) {
+        return false;
+    }
+
+    if (point.y > front_top_left.y || point.y < back_bottom_right.y ) {
+        return false;
+    }
+
+    return true;
+
+}
+
+
+GLboolean intersects(Bound_Cube bounds1, Bound_Cube bounds2) {
+    v3 front_top_left_1 = bounds1.front_top_left;
+    v3 front_top_left_2 = bounds2.front_top_left;
+
+    v3 back_bottom_right_1 = bounds1.back_bottom_right;
+    v3 back_bottom_right_2 = bounds2.back_bottom_right;
+
+    if (intersects_point(front_top_left_1, bounds2)) {
+        return true;
+    }
+
+    if (intersects_point(back_bottom_right_1, bounds2)) {
+        return true;
+    }
+
+    if (intersects_point(front_top_left_2, bounds1)) {
+        return true;
+    }
+
+    if (intersects_point(back_bottom_right_2, bounds1)) {
+        return true;
+    }
+
+    return false;
+
+}
+
+
 void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Environment env) {
 
     m4 * transformation_matrices = events.transformation_matrices;
@@ -586,6 +667,43 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
     } else {
         ball_bound_check_y = ball_next_y + bound_limit_ball;
     }
+
+
+    GLfloat pad_right_x = transformation_matrices[ID_PADDLE_RIGHT][0][3];
+    GLfloat pad_right_y = transformation_matrices[ID_PADDLE_RIGHT][1][3];
+
+    Bound_Cube bounds_pad_right, bounds_ball;
+
+    v3 pos_pad_right = (v3){.x = pad_right_x,
+                            .y = pad_right_y,
+                            .z = 0.0f};
+
+    v3 pos_ball = (v3){.x = *pos_ball_x,
+                            *pos_ball_y,
+                            .z = 0.0f};
+
+    get_bounds(&bounds_pad_right, pos_pad_right, items[ID_PADDLE_RIGHT], env);
+    get_bounds(&bounds_ball, pos_ball, items[ID_BALL], env);
+
+    print_bound_cube(bounds_pad_right);
+    print_bound_cube(bounds_ball);
+
+    if (intersects(bounds_pad_right, bounds_ball)) {
+        items[ID_BALL].speed.x *= -1.0f;
+    }
+
+    GLfloat width_pad = items[ID_PADDLE_RIGHT].width*env.delta_width*0.5f;
+    GLfloat height_pad = items[ID_PADDLE_RIGHT].height*env.delta_height*0.5f;
+
+    GLfloat pad_right_side_left = pad_right_x - width_pad;
+
+//    if (ball_bound_check_x > pad_right_side_left) {
+//        if (ball_bound_check_y <= pad_right_y + height_pad &&
+//            ball_bound_check_y >= pad_right_y - height_pad ) {
+//                items[ID_BALL].speed.x += 2;
+//                items[ID_BALL].speed.x *= -1.0f;
+//        }
+//    }
 
     if (ball_bound_check_x > 1.0f) {
         *pos_ball_x = 1.0f - bound_limit_ball;
