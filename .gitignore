@@ -3,3 +3,6 @@ pong
 
 # Ignore swap files.
 .*sw*
+
+# Ignore valgrind dump files.
+vgcore*
