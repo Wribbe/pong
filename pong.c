@@ -47,12 +47,22 @@ typedef struct Item_Data {
 } Item_Data;
 
 
+typedef struct Node {
+    struct Node * next;
+    GLfloat * data;
+    size_t size;
+} Node;
+
+
 typedef struct Data_Environment {
     GLint width;
     GLint height;
     GLfloat delta_width; /* Float value per pixel along width. */
     GLfloat delta_height;/* Float value per pixel along height. */
-
+    GLuint * VAOs;
+    GLuint * VBOs;
+    GLuint * programs;
+    Node ** render_pool;
 } Data_Environment;
 
 
@@ -198,11 +208,28 @@ const GLchar * source_vertex_shader = \
     "}\n";
 
 
+const GLchar * source_non_transform_vertex_shader = \
+    "#version 330 core\n"
+    "layout (location=0) in vec3 position;\n"
+    "\n"
+    "void main() {"
+    "   gl_Position = vec4(position, 1.0f);\n"
+    "}\n";
+
+
 const GLchar * source_fragment_shader = \
     "#version 330 core\n"
     "out vec4 color;\n"
     "void main() {\n"
     "   color = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
+    "}\n";
+
+
+const GLchar * source_bound_shader= \
+    "#version 330 core\n"
+    "out vec4 color;\n"
+    "void main() {\n"
+    "   color = vec4(1.0f, 0.0f, 0.0f, 1.0f);\n"
     "}\n";
 
 
@@ -425,6 +452,7 @@ void square(GLfloat * buffer, Item_Data item, Data_Environment env){
 typedef enum entities {
     PADDLE,
     BALL,
+    DEBUG_BUFFER,
     NUM_ENTITIES,
 } entities;
 
@@ -560,6 +588,74 @@ typedef struct Bound_Cube {
 } Bound_Cube;
 
 
+void visualize_bounds(Bound_Cube * bounds, Data_Environment * env) {
+
+    v3 front_top_left = bounds->front_top_left;
+    v3 back_bottom_right = bounds->back_bottom_right;
+
+    /* GL_LINES considers 0-1 a line, 2-3 a line etc. */
+    GLfloat vertices_wireframe[] = {
+        /* First line. */
+        front_top_left.x, front_top_left.y, 0.0f,
+        back_bottom_right.x, front_top_left.y, 0.0f,
+        /* Second line. */
+        back_bottom_right.x, front_top_left.y, 0.0f,
+        back_bottom_right.x, back_bottom_right.y, 0.0f,
+        /* Third line. */
+        back_bottom_right.x, back_bottom_right.y, 0.0f,
+        front_top_left.x, back_bottom_right.y, 0.0f,
+        /* Fourth line. */
+        front_top_left.x, back_bottom_right.y, 0.0f,
+        front_top_left.x, front_top_left.y, 0.0f,
+    };
+
+    /* Grab current head of render pool. */
+    Node ** pool_current_head = env->render_pool;
+
+    /* Allocate data for new node and wireframe data. */
+    Node * node = malloc(sizeof(Node));
+    size_t s_wireframe_data = sizeof(vertices_wireframe)*sizeof(GLfloat);
+    GLfloat * data = malloc(s_wireframe_data);
+
+    /* Setup new node for current data. */
+    memcpy(data, vertices_wireframe, s_wireframe_data);
+    node->data = data;
+    node->next = *pool_current_head;
+    node->size = sizeof(vertices_wireframe);
+
+    /* Prepend new node to head of pool. */
+    *env->render_pool = node;
+}
+
+
+void handle_render_pool(Data_Environment * env) {
+
+    Node * current_node = *(env->render_pool);
+    Node * previous_node = NULL;
+    Node * next_node = NULL;
+    GLuint num_nodes = 0;
+    for(;;) {
+        num_nodes += 1;
+        if (previous_node != NULL) {
+            free(previous_node);
+        }
+        if (current_node->next == NULL) {
+            break;
+        } else {
+            next_node = current_node->next;
+            /* Deallocate current allocated memory for data. */
+            render_vertices(current_node->data, current_node->size, GL_LINES,
+                            env);
+            free(current_node->data);
+            /* Iterate to next step of nodes. */
+            previous_node = current_node;
+            current_node = next_node;
+        }
+    }
+    *(env->render_pool) = current_node;
+}
+
+
 void get_bounds(Bound_Cube * cube, v3 position, Item_Data item, Data_Environment env) {
 
     GLfloat relative_width_half = item.width*0.5f*env.delta_width;
@@ -576,6 +672,8 @@ void get_bounds(Bound_Cube * cube, v3 position, Item_Data item, Data_Environment
         .y = position.y - relative_height_half,
         .z = 0.0f,
     };
+
+    visualize_bounds(cube, &env);
 }
 
 
@@ -594,6 +692,8 @@ GLboolean intersects_point(v3 point, Bound_Cube bounds) {
     v3 front_top_left = bounds.front_top_left;
     v3 back_bottom_right = bounds.back_bottom_right;
 
+    printf("point.x: %f, front_top_left.x: %f\n", point.x, front_top_left.x);
+    printf("point.y: %f, back_bottom_right.y: %f\n", point.y, back_bottom_right.y);
     if (point.x < front_top_left.x || point.x > back_bottom_right.x ) {
         return false;
     }
@@ -678,12 +778,12 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
                             .y = pad_right_y,
                             .z = 0.0f};
 
-    v3 pos_ball = (v3){.x = *pos_ball_x,
-                            *pos_ball_y,
-                            .z = 0.0f};
+    v3 pos_ball_next = (v3){.x = ball_next_x,
+                                 ball_next_y,
+                                 .z = 0.0f};
 
     get_bounds(&bounds_pad_right, pos_pad_right, items[ID_PADDLE_RIGHT], env);
-    get_bounds(&bounds_ball, pos_ball, items[ID_BALL], env);
+    get_bounds(&bounds_ball, pos_ball_next, items[ID_BALL], env);
 
     print_bound_cube(bounds_pad_right);
     print_bound_cube(bounds_ball);
@@ -695,7 +795,7 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
     GLfloat width_pad = items[ID_PADDLE_RIGHT].width*env.delta_width*0.5f;
     GLfloat height_pad = items[ID_PADDLE_RIGHT].height*env.delta_height*0.5f;
 
-    GLfloat pad_right_side_left = pad_right_x - width_pad;
+//    GLfloat pad_right_side_left = pad_right_x - width_pad;
 
 //    if (ball_bound_check_x > pad_right_side_left) {
 //        if (ball_bound_check_y <= pad_right_y + height_pad &&
@@ -714,6 +814,52 @@ void  move_non_controlled_items(Event_Data events, Item_Data * items, Data_Envir
     } else {
         *pos_ball_x = ball_next_x;
     }
+}
+
+
+void render_vertices(GLfloat * vertices, size_t s_vertices, GLenum mode,
+                     Data_Environment * env) {
+
+    GLuint VBO = env->VBOs[DEBUG_BUFFER];
+    GLuint VAO = env->VAOs[DEBUG_BUFFER];
+
+    /* Bind buffer and dump the data. */
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 s_vertices*sizeof(GLfloat),
+                 vertices,
+                 GL_STATIC_DRAW);
+    /* Bind vertex array object. */
+    glBindVertexArray(VAO);
+
+    /* Set up vertex attribute pointer. */
+    GLuint index = 0;
+    GLint num_components = 3;
+    glVertexAttribPointer(index,
+                          num_components,
+                          GL_FLOAT,
+                          GL_FALSE,
+                          num_components*sizeof(GL_FLOAT),
+                          (GLvoid *)0);
+    /* Enable vertex attribute pointer. */
+    glEnableVertexAttribArray(0);
+
+    /* Unbind buffers. */
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    /* Use correct program */
+    glUseProgram(env->programs[1]);
+
+    /* Re-bind the wireframe VAO. */
+    glBindVertexArray(env->VAOs[DEBUG_BUFFER]);
+
+    /* Draw the lines. */
+    glDrawArrays(mode, 0, 8);
+
+    /* Unbind program and buffer. */
+    glUseProgram(0);
+    glBindVertexArray(0);
 }
 
 
@@ -763,11 +909,21 @@ int main(void) {
     // ================================================================
 
     /* Create and populate environment data. */
+
+    GLfloat test_data[] = {
+        7.0f,
+    };
+
+    Node * render_pool = malloc(sizeof(Node));
+    render_pool->next = NULL;
+    render_pool->data= &test_data;
+
     Data_Environment data_environment = {
         .width = WIDTH,
         .height = HEIGHT,
         .delta_width = 2.0f/WIDTH,
         .delta_height = 2.0f/HEIGHT,
+        .render_pool = &render_pool,
     };
 
     /* Create array with transformation matrices. */
@@ -937,16 +1093,17 @@ int main(void) {
     // == Shaders.
     // ================================================================
 
-    /* Create variables for fragment and vertex shader. */
-    GLuint shader_fragment, shader_vertex;
-
     /* Create storage for shaders. */
-    shader_vertex = glCreateShader(GL_VERTEX_SHADER);
-    shader_fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint shader_vertex = glCreateShader(GL_VERTEX_SHADER);
+    GLuint shader_fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint shader_bound = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint shader_vertex_notran = glCreateShader(GL_VERTEX_SHADER);
 
     /* Bind shader sources. */
     glShaderSource(shader_vertex, 1, &source_vertex_shader, 0);
     glShaderSource(shader_fragment, 1, &source_fragment_shader, 0);
+    glShaderSource(shader_bound, 1, &source_bound_shader, 0);
+    glShaderSource(shader_vertex_notran, 1, &source_non_transform_vertex_shader, 0);
 
     /* Compile shaders. */
     GLint success;
@@ -967,16 +1124,31 @@ int main(void) {
         error(buffer_info, false);
     }
 
+    /* Compile bound shader and print errors. */
+    success = shader_compile(shader_bound, buffer_info , s_buffer_info);
+    if (!success) {
+        error("Error in bound shader:\n", false);
+        error(buffer_info, false);
+    }
+
+    /* Compile bound shader and print errors. */
+    success = shader_compile(shader_vertex_notran, buffer_info , s_buffer_info);
+    if (!success) {
+        error("Error in vertex_nontran:\n", false);
+        error(buffer_info, false);
+    }
+
     /* Set up shader program. */
-    GLuint program_shader = glCreateProgram();
+    GLuint program_basic_white = glCreateProgram();
+    GLuint program_basic_bound = glCreateProgram();
 
     /* Make shader list */
-    GLuint shaders[] = {shader_vertex, shader_fragment};
+    GLuint shaders_basic_white[] = {shader_vertex, shader_fragment};
 
     /* Attach shaders to shader program and link. */
-    success = program_link(program_shader,
-                           shaders,
-                           SIZE(shaders),
+    success = program_link(program_basic_white,
+                           shaders_basic_white,
+                           SIZE(shaders_basic_white),
                            buffer_info,
                            s_buffer_info);
 
@@ -986,10 +1158,33 @@ int main(void) {
     }
 
     /* Delete linked shaders. */
-    shaders_delete(shaders, SIZE(shaders));
+    shaders_delete(shaders_basic_white, SIZE(shaders_basic_white));
+
+    GLuint shaders_basic_bound[] = {shader_vertex_notran, shader_bound};
+    /* Attach shaders to shader program and link. */
+    success = program_link(program_basic_bound,
+                           shaders_basic_bound,
+                           SIZE(shaders_basic_bound),
+                           buffer_info,
+                           s_buffer_info);
+
+    if(!success) {
+        error("Error at program linkage:\n", false);
+        error(buffer_info, false);
+    }
+
+    /* Delete linked shaders. */
+    shaders_delete(shaders_basic_bound, SIZE(shaders_basic_bound));
 
     /* Get vertex shader transformation location. */
-    GLuint uloc_transform = glGetUniformLocation(program_shader, "transform");
+    GLuint uloc_transform = glGetUniformLocation(program_basic_white, "transform");
+
+    GLuint programs[] = {
+        program_basic_white,
+        program_basic_bound,
+    };
+
+    data_environment.programs = programs;
 
     // ================================================================
     // == Set up render data.
@@ -1001,7 +1196,7 @@ int main(void) {
     /* Set up render data for paddles. */
     Render_Data data_render_paddle = (Render_Data){
         .VAO = VAOs[PADDLE],
-        .program_shader = program_shader,
+        .program_shader = program_basic_white,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
@@ -1011,7 +1206,7 @@ int main(void) {
     /* Set up render data for ball.*/
     Render_Data data_render_ball= (Render_Data){
         .VAO = VAOs[BALL],
-        .program_shader = program_shader,
+        .program_shader = program_basic_white,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
@@ -1021,18 +1216,25 @@ int main(void) {
     /* Set up render data for displays.*/
     Render_Data data_render_display = (Render_Data){
         .VAO = VAOs[BALL],
-        .program_shader = program_shader,
+        .program_shader = program_basic_white,
         .size_data = num_floats*sizeof(GLfloat),
         .uloc_transform = uloc_transform,
         .transformation_matrices = transformation_matrices,
         .render_function = &render_display,
     };
 
+    /* Store VBOs and VAOs references in data_environment struct. */
+    data_environment.VAOs = VAOs;
+    data_environment.VBOs = VBOs;
+
     // ================================================================
     // == Main loop.
     // ================================================================
 
     while(!glfwWindowShouldClose(window)) {
+
+        /* Clear screen. */
+        glClear(GL_COLOR_BUFFER_BIT);
 
         /* Poll for events. */
         glfwPollEvents();
@@ -1042,9 +1244,6 @@ int main(void) {
 
         /* Move the world. */
         move_non_controlled_items(event_data, items, data_environment);
-
-        /* Clear screen. */
-        glClear(GL_COLOR_BUFFER_BIT);
 
         /* Render the right paddle. */
         render(data_render_paddle, ID_PADDLE_RIGHT, (void*)0, 0);
@@ -1063,7 +1262,11 @@ int main(void) {
         render(data_render_display, ID_DISPLAY_LEFT, (void*)&display_left,
                NUM_ELEMENTS);
 
+        /* De-allocate and render data in render_pool. */
+        handle_render_pool(&data_environment);
+
         /* Swap buffers. */
         glfwSwapBuffers(window);
     }
+    glfwTerminate();
 }
